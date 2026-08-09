@@ -2,74 +2,124 @@
 // Main Application JavaScript
 
 // ============================================================
-// Data Layer - Easily swappable for Firestore/Firebase
+// Data Layer - Firestore Integration
 // ============================================================
 
 const DataStore = {
-    // Storage keys
-    TRIP_KEY: 'tripBalance_trip',
-    EXPENSES_KEY: 'tripBalance_expenses',
+    // Firestore collection references
+    tripRef: null,
+    expensesRef: null,
+    currentTripId: null,
+
+    // Initialize Firestore references
+    init() {
+        this.tripRef = db.collection('trips').doc('current');
+        this.expensesRef = db.collection('expenses');
+    },
 
     // Get trip details
-    getTrip() {
-        const data = localStorage.getItem(this.TRIP_KEY);
-        return data ? JSON.parse(data) : {
-            name: '',
-            startDate: '',
-            endDate: '',
-            currency: 'USD'
-        };
+    async getTrip() {
+        try {
+            const doc = await this.tripRef.get();
+            if (doc.exists) {
+                this.currentTripId = doc.id;
+                return doc.data();
+            }
+            return {
+                name: '',
+                startDate: '',
+                endDate: '',
+                currency: 'USD'
+            };
+        } catch (error) {
+            console.error('Error getting trip:', error);
+            return {
+                name: '',
+                startDate: '',
+                endDate: '',
+                currency: 'USD'
+            };
+        }
     },
 
     // Save trip details
-    saveTrip(trip) {
-        localStorage.setItem(this.TRIP_KEY, JSON.stringify(trip));
+    async saveTrip(trip) {
+        try {
+            await this.tripRef.set(trip);
+            return true;
+        } catch (error) {
+            console.error('Error saving trip:', error);
+            return false;
+        }
     },
 
     // Get all expenses
-    getExpenses() {
-        const data = localStorage.getItem(this.EXPENSES_KEY);
-        return data ? JSON.parse(data) : [];
-    },
-
-    // Save all expenses
-    saveExpenses(expenses) {
-        localStorage.setItem(this.EXPENSES_KEY, JSON.stringify(expenses));
+    async getExpenses() {
+        try {
+            const snapshot = await this.expensesRef.orderBy('date', 'desc').get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error getting expenses:', error);
+            return [];
+        }
     },
 
     // Add a new expense
-    addExpense(expense) {
-        const expenses = this.getExpenses();
-        expense.id = Date.now().toString();
-        expense.createdAt = new Date().toISOString();
-        expenses.push(expense);
-        this.saveExpenses(expenses);
-        return expense;
+    async addExpense(expense) {
+        try {
+            const docRef = await this.expensesRef.add(expense);
+            return {
+                id: docRef.id,
+                ...expense
+            };
+        } catch (error) {
+            console.error('Error adding expense:', error);
+            return null;
+        }
     },
 
     // Update an expense
-    updateExpense(id, updates) {
-        const expenses = this.getExpenses();
-        const index = expenses.findIndex(e => e.id === id);
-        if (index !== -1) {
-            expenses[index] = { ...expenses[index], ...updates };
-            this.saveExpenses(expenses);
-            return expenses[index];
+    async updateExpense(id, updates) {
+        try {
+            await this.expensesRef.doc(id).update(updates);
+            return {
+                id,
+                ...updates
+            };
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            return null;
         }
-        return null;
     },
 
     // Delete an expense
-    deleteExpense(id) {
-        const expenses = this.getExpenses();
-        const filtered = expenses.filter(e => e.id !== id);
-        this.saveExpenses(filtered);
-        return filtered;
+    async deleteExpense(id) {
+        try {
+            await this.expensesRef.doc(id).delete();
+            return true;
+        } catch (error) {
+            console.error('Error deleting expense:', error);
+            return false;
+        }
     },
 
     // Clear all expenses
-    clearAllExpenses() {
-        this.saveExpenses([]);
+    async clearAllExpenses() {
+        try {
+            const snapshot = await this.expensesRef.get();
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error('Error clearing expenses:', error);
+            return false;
+        }
     }
 };
 
@@ -151,21 +201,25 @@ const UI = {
         clearAll: document.getElementById('clearAll')
     },
 
+    // Current trip data
+    currentTrip: null,
+
     // Initialize UI
-    init() {
-        this.loadTripDetails();
-        this.loadExpenses();
+    async init() {
+        DataStore.init();
+        await this.loadTripDetails();
+        await this.loadExpenses();
         this.setDefaultDate();
         this.bindEvents();
     },
 
-    // Load trip details from storage
-    loadTripDetails() {
-        const trip = DataStore.getTrip();
-        this.elements.tripName.value = trip.name;
-        this.elements.startDate.value = trip.startDate;
-        this.elements.endDate.value = trip.endDate;
-        this.elements.tripCurrency.value = trip.currency;
+    // Load trip details from Firestore
+    async loadTripDetails() {
+        this.currentTrip = await DataStore.getTrip();
+        this.elements.tripName.value = this.currentTrip.name;
+        this.elements.startDate.value = this.currentTrip.startDate;
+        this.elements.endDate.value = this.currentTrip.endDate;
+        this.elements.tripCurrency.value = this.currentTrip.currency;
     },
 
     // Set default date for new expenses
@@ -190,47 +244,56 @@ const UI = {
         this.elements.clearAll.addEventListener('click', () => this.clearAllExpenses());
     },
 
-    // Save trip details
-    saveTripDetails() {
+    // Save trip details to Firestore
+    async saveTripDetails() {
         const trip = {
             name: this.elements.tripName.value,
             startDate: this.elements.startDate.value,
             endDate: this.elements.endDate.value,
             currency: this.elements.tripCurrency.value
         };
-        DataStore.saveTrip(trip);
-        this.showNotification('Trip details saved!', 'success');
+
+        const success = await DataStore.saveTrip(trip);
+        if (success) {
+            this.currentTrip = trip;
+            this.showNotification('Trip details saved!', 'success');
+        } else {
+            this.showNotification('Error saving trip details', 'error');
+        }
     },
 
     // Handle adding new expense
-    handleAddExpense(e) {
+    async handleAddExpense(e) {
         e.preventDefault();
 
-        const trip = DataStore.getTrip();
         const expense = {
             description: this.elements.expenseDescription.value.trim(),
             amount: parseFloat(this.elements.expenseAmount.value),
             category: this.elements.expenseCategory.value,
             date: this.elements.expenseDate.value,
-            currency: trip.currency
+            currency: this.currentTrip.currency
         };
 
-        DataStore.addExpense(expense);
+        const newExpense = await DataStore.addExpense(expense);
 
-        // Reset form
-        this.elements.expenseForm.reset();
-        this.setDefaultDate();
+        if (newExpense) {
+            // Reset form
+            this.elements.expenseForm.reset();
+            this.setDefaultDate();
 
-        // Reload expenses
-        this.loadExpenses();
+            // Reload expenses
+            await this.loadExpenses();
 
-        // Show success feedback
-        this.showNotification('Expense added successfully!', 'success');
+            // Show success feedback
+            this.showNotification('Expense added successfully!', 'success');
+        } else {
+            this.showNotification('Error adding expense', 'error');
+        }
     },
 
     // Load and display expenses
-    loadExpenses() {
-        let expenses = DataStore.getExpenses();
+    async loadExpenses() {
+        let expenses = await DataStore.getExpenses();
 
         // Apply category filter
         const categoryFilter = this.elements.filterCategory.value;
@@ -245,8 +308,9 @@ const UI = {
         // Render expenses
         this.renderExpenses(expenses);
 
-        // Update summary
-        this.updateSummary(DataStore.getExpenses());
+        // Update summary with all expenses (not filtered)
+        const allExpenses = await DataStore.getExpenses();
+        this.updateSummary(allExpenses);
     },
 
     // Render expenses list
@@ -290,17 +354,20 @@ const UI = {
     },
 
     // Delete expense
-    deleteExpense(id) {
+    async deleteExpense(id) {
         if (confirm('Are you sure you want to delete this expense?')) {
-            DataStore.deleteExpense(id);
-            this.loadExpenses();
-            this.showNotification('Expense deleted', 'info');
+            const success = await DataStore.deleteExpense(id);
+            if (success) {
+                await this.loadExpenses();
+                this.showNotification('Expense deleted', 'info');
+            } else {
+                this.showNotification('Error deleting expense', 'error');
+            }
         }
     },
 
     // Update summary statistics
     updateSummary(expenses) {
-        const trip = DataStore.getTrip();
         const total = expenses.reduce((sum, e) => sum + e.amount, 0);
         const count = expenses.length;
         const avg = count > 0 ? total / count : 0;
@@ -315,9 +382,10 @@ const UI = {
         });
 
         // Update DOM
-        this.elements.totalExpenses.textContent = CurrencyUtils.format(total, trip.currency);
+        const currency = this.currentTrip ? this.currentTrip.currency : 'USD';
+        this.elements.totalExpenses.textContent = CurrencyUtils.format(total, currency);
         this.elements.expenseCount.textContent = count;
-        this.elements.avgExpense.textContent = CurrencyUtils.format(avg, trip.currency);
+        this.elements.avgExpense.textContent = CurrencyUtils.format(avg, currency);
 
         // Render category breakdown
         this.renderCategoryBreakdown(byCategory);
@@ -326,7 +394,7 @@ const UI = {
     // Render category breakdown
     renderCategoryBreakdown(byCategory) {
         const categories = Object.keys(byCategory);
-        const trip = DataStore.getTrip();
+        const currency = this.currentTrip ? this.currentTrip.currency : 'USD';
 
         if (categories.length === 0) {
             this.elements.categoryBreakdown.innerHTML = '<p class="no-expenses">No expenses yet</p>';
@@ -346,7 +414,7 @@ const UI = {
                         <span class="category-icon category-${category}"></span>
                         ${info.icon} ${info.name}
                     </span>
-                    <span class="category-amount">${CurrencyUtils.format(amount, trip.currency)}</span>
+                    <span class="category-amount">${CurrencyUtils.format(amount, currency)}</span>
                 </div>
             `;
         }).join('');
@@ -355,8 +423,8 @@ const UI = {
     },
 
     // Export to CSV
-    exportToCSV() {
-        const expenses = DataStore.getExpenses();
+    async exportToCSV() {
+        const expenses = await DataStore.getExpenses();
 
         if (expenses.length === 0) {
             this.showNotification('No expenses to export', 'info');
@@ -382,7 +450,9 @@ const UI = {
         ].join('\n');
 
         // Create download link
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([csvContent], {
+            type: 'text/csv;charset=utf-8;'
+        });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
 
@@ -398,11 +468,15 @@ const UI = {
     },
 
     // Clear all expenses
-    clearAllExpenses() {
+    async clearAllExpenses() {
         if (confirm('Are you sure you want to delete ALL expenses? This action cannot be undone.')) {
-            DataStore.clearAllExpenses();
-            this.loadExpenses();
-            this.showNotification('All expenses cleared', 'info');
+            const success = await DataStore.clearAllExpenses();
+            if (success) {
+                await this.loadExpenses();
+                this.showNotification('All expenses cleared', 'info');
+            } else {
+                this.showNotification('Error clearing expenses', 'error');
+            }
         }
     },
 
@@ -416,33 +490,25 @@ const UI = {
         // Style the notification
         notification.style.cssText = `
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 2rem;
+            border-radius: 12px;
             color: white;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.95rem;
             z-index: 1000;
-            animation: slideIn 0.3s ease;
-            background-color: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background-color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         `;
-
-        // Add animation styles
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
 
         document.body.appendChild(notification);
 
         // Remove after 3 seconds
         setTimeout(() => {
-            notification.style.animation = 'slideIn 0.3s ease reverse';
-            setTimeout(() => notification.remove(), 300);
+            notification.style.animation = 'slideOut 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            setTimeout(() => notification.remove(), 400);
         }, 3000);
     },
 
@@ -461,31 +527,3 @@ const UI = {
 document.addEventListener('DOMContentLoaded', () => {
     UI.init();
 });
-
-// ============================================================
-// Future: Firestore Integration Guide
-// ============================================================
-//
-// To integrate with Firestore, replace the DataStore methods:
-//
-// 1. Initialize Firebase in a separate config file
-// 2. Replace localStorage calls with Firestore operations:
-//
-// Example:
-// const DataStore = {
-//     async getExpenses() {
-//         const snapshot = await db.collection('expenses').get();
-//         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-//     },
-//
-//     async addExpense(expense) {
-//         const docRef = await db.collection('expenses').add(expense);
-//         return { id: docRef.id, ...expense };
-//     },
-//
-//     async deleteExpense(id) {
-//         await db.collection('expenses').doc(id).delete();
-//     }
-// };
-//
-// ============================================================

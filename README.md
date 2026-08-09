@@ -11,18 +11,19 @@ A modern, responsive web application for tracking travel expenses. Keep all your
 - **Filtering**: Filter expenses by category
 - **Summary Statistics**: View total expenses, count, average per expense, and category breakdown (all in trip currency)
 - **Data Export**: Export expenses to CSV format
-- **Persistent Storage**: All data saved in localStorage (easily swappable to Firestore/Firebase)
+- **Persistent Storage**: All data saved in Firebase Firestore (cloud-based, real-time sync)
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 
 ## Project Structure
 
 ```
 TripBalance/
-├── index.html      # Main HTML file with structure and layout
-├── styles.css      # CSS styling and responsive design
-├── app.js          # JavaScript logic and data management
-├── README.md       # Project documentation (this file)
-└── AGENTS.md       # AI agent instructions
+├── index.html          # Main HTML file with structure and layout
+├── styles.css          # CSS styling and responsive design
+├── app.js              # JavaScript logic and data management
+├── firebase-config.js  # Firebase configuration
+├── README.md           # Project documentation (this file)
+└── AGENTS.md           # AI agent instructions
 ```
 
 ## File Descriptions
@@ -50,10 +51,16 @@ Complete CSS styling including:
 
 ### app.js
 JavaScript application logic organized into:
-- **DataStore**: LocalStorage abstraction layer (easily replaceable with Firestore)
+- **DataStore**: Firestore integration for data persistence
 - **CurrencyUtils**: Currency formatting and symbol management
 - **CategoryUtils**: Category information and organization
 - **UI Controller**: DOM manipulation, event handling, and rendering
+
+### firebase-config.js
+Firebase configuration file containing:
+- Firebase project configuration
+- Firestore initialization
+- Connection to your Firebase project
 
 ## Getting Started
 
@@ -77,32 +84,36 @@ JavaScript application logic organized into:
 
 ## Data Storage
 
-Currently uses browser localStorage for data persistence:
-- `tripBalance_trip`: Stores trip details
-- `tripBalance_expenses`: Stores all expense records
+This project uses Firebase Firestore for cloud-based data persistence:
+- **trips** collection: Stores trip details (name, dates, currency)
+- **expenses** collection: Stores all expense records
 
-### Future: Firestore/Firebase Integration
+### Firestore Setup
 
-The code is structured with a `DataStore` abstraction layer that makes it easy to switch to Firestore:
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project
+3. Go to **Firestore Database** in the left sidebar
+4. Click **Create Database**
+5. Choose a location for your database
+6. Select **Start in test mode** (for development)
+7. Click **Enable**
 
-```javascript
-// Replace localStorage operations with Firestore
-const DataStore = {
-    async getExpenses() {
-        const snapshot = await db.collection('expenses').get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    },
+### Firestore Security Rules (Development)
 
-    async addExpense(expense) {
-        const docRef = await db.collection('expenses').add(expense);
-        return { id: docRef.id, ...expense };
-    },
+For development, you can use these rules in Firestore:
 
-    async deleteExpense(id) {
-        await db.collection('expenses').doc(id).delete();
-    }
-};
 ```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+**Note:** These rules allow public access. For production, implement proper authentication and security rules.
 
 ## Browser Support
 
