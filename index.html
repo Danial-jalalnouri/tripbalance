@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Balance - Travel Expense Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Trip Balance</h1>
+            <p class="subtitle">Track your travel expenses with ease</p>
+        </header>
+
+        <main>
+            <!-- Trip Info Section -->
+            <section class="trip-info">
+                <h2>Trip Details</h2>
+                <div class="trip-form">
+                    <div class="form-group">
+                        <label for="tripName">Trip Name</label>
+                        <input type="text" id="tripName" placeholder="e.g., European Adventure 2024">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="startDate">Start Date</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">End Date</label>
+                            <input type="date" id="endDate">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Add Expense Section -->
+            <section class="add-expense">
+                <h2>Add Expense</h2>
+                <form id="expenseForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expenseDescription">Description</label>
+                            <input type="text" id="expenseDescription" placeholder="e.g., Lunch at café" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseAmount">Amount</label>
+                            <input type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expenseCategory">Category</label>
+                            <select id="expenseCategory" required>
+                                <option value="">Select category</option>
+                                <option value="food">Food & Dining</option>
+                                <option value="transport">Transport</option>
+                                <option value="accommodation">Accommodation</option>
+                                <option value="activities">Activities</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseDate">Date</label>
+                            <input type="date" id="expenseDate" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenseCurrency">Currency</label>
+                        <select id="expenseCurrency" required>
+                            <option value="USD">USD - US Dollar</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - British Pound</option>
+                            <option value="JPY">JPY - Japanese Yen</option>
+                            <option value="CAD">CAD - Canadian Dollar</option>
+                            <option value="AUD">AUD - Australian Dollar</option>
+                            <option value="CHF">CHF - Swiss Franc</option>
+                            <option value="CNY">CNY - Chinese Yuan</option>
+                            <option value="INR">INR - Indian Rupee</option>
+                            <option value="MYR">MYR - Malaysian Ringgit</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">Add Expense</button>
+                </form>
+            </section>
+
+            <!-- Expenses List Section -->
+            <section class="expenses-section">
+                <div class="expenses-header">
+                    <h2>Expenses</h2>
+                    <div class="filter-group">
+                        <select id="filterCategory">
+                            <option value="all">All Categories</option>
+                            <option value="food">Food & Dining</option>
+                            <option value="transport">Transport</option>
+                            <option value="accommodation">Accommodation</option>
+                            <option value="activities">Activities</option>
+                            <option value="shopping">Shopping</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <select id="filterCurrency">
+                            <option value="all">All Currencies</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="JPY">JPY</option>
+                            <option value="CAD">CAD</option>
+                            <option value="AUD">AUD</option>
+                            <option value="CHF">CHF</option>
+                            <option value="CNY">CNY</option>
+                            <option value="INR">INR</option>
+                            <option value="MYR">MYR</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="expensesList" class="expenses-list">
+                    <p class="no-expenses">No expenses added yet. Start tracking your trip!</p>
+                </div>
+            </section>
+
+            <!-- Summary Section -->
+            <section class="summary-section">
+                <h2>Summary</h2>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>Total Expenses</h3>
+                        <p id="totalExpenses" class="amount">$0.00</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Number of Expenses</h3>
+                        <p id="expenseCount" class="count">0</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Average per Expense</h3>
+                        <p id="avgExpense" class="amount">$0.00</p>
+                    </div>
+                </div>
+
+                <div class="category-summary">
+                    <h3>Expenses by Category</h3>
+                    <div id="categoryBreakdown" class="category-list">
+                        <!-- Category breakdown will be populated here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Actions Section -->
+            <section class="actions-section">
+                <button id="exportCSV" class="btn-secondary">Export to CSV</button>
+                <button id="clearAll" class="btn-danger">Clear All Expenses</button>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Trip Balance. Track your travels, balance your budget.</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
