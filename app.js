@@ -2,61 +2,103 @@
 // Main Application JavaScript
 
 // ============================================================
-// Data Layer - Firestore Integration
+// Data Layer - Firestore Integration (Multiple Trips)
 // ============================================================
 
 const DataStore = {
     // Firestore collection references
-    tripRef: null,
+    tripsRef: null,
     expensesRef: null,
     currentTripId: null,
 
     // Initialize Firestore references
     init() {
-        this.tripRef = db.collection('trips').doc('current');
+        this.tripsRef = db.collection('trips');
         this.expensesRef = db.collection('expenses');
     },
 
-    // Get trip details
-    async getTrip() {
+    // Get all trips
+    async getAllTrips() {
         try {
-            const doc = await this.tripRef.get();
-            if (doc.exists) {
-                this.currentTripId = doc.id;
-                return doc.data();
-            }
-            return {
-                name: '',
-                startDate: '',
-                endDate: '',
-                currency: 'USD'
-            };
+            const snapshot = await this.tripsRef.orderBy('createdAt', 'desc').get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
         } catch (error) {
-            console.error('Error getting trip:', error);
-            return {
-                name: '',
-                startDate: '',
-                endDate: '',
-                currency: 'USD'
-            };
+            console.error('Error getting trips:', error);
+            return [];
         }
     },
 
-    // Save trip details
-    async saveTrip(trip) {
+    // Get a single trip by ID
+    async getTrip(tripId) {
         try {
-            await this.tripRef.set(trip);
+            const doc = await this.tripsRef.doc(tripId).get();
+            if (doc.exists) {
+                return {
+                    id: doc.id,
+                    ...doc.data()
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting trip:', error);
+            return null;
+        }
+    },
+
+    // Create a new trip
+    async createTrip(trip) {
+        try {
+            trip.createdAt = new Date().toISOString();
+            const docRef = await this.tripsRef.add(trip);
+            return {
+                id: docRef.id,
+                ...trip
+            };
+        } catch (error) {
+            console.error('Error creating trip:', error);
+            return null;
+        }
+    },
+
+    // Update a trip
+    async updateTrip(tripId, updates) {
+        try {
+            await this.tripsRef.doc(tripId).update(updates);
+            return {
+                id: tripId,
+                ...updates
+            };
+        } catch (error) {
+            console.error('Error updating trip:', error);
+            return null;
+        }
+    },
+
+    // Delete a trip and its expenses
+    async deleteTrip(tripId) {
+        try {
+            // Delete all expenses for this trip
+            const expensesSnapshot = await this.expensesRef.where('tripId', '==', tripId).get();
+            const batch = db.batch();
+            expensesSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            batch.delete(this.tripsRef.doc(tripId));
+            await batch.commit();
             return true;
         } catch (error) {
-            console.error('Error saving trip:', error);
+            console.error('Error deleting trip:', error);
             return false;
         }
     },
 
-    // Get all expenses
-    async getExpenses() {
+    // Get expenses for a specific trip
+    async getExpensesByTrip(tripId) {
         try {
-            const snapshot = await this.expensesRef.orderBy('date', 'desc').get();
+            const snapshot = await this.expensesRef.where('tripId', '==', tripId).get();
             return snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -70,6 +112,7 @@ const DataStore = {
     // Add a new expense
     async addExpense(expense) {
         try {
+            expense.createdAt = new Date().toISOString();
             const docRef = await this.expensesRef.add(expense);
             return {
                 id: docRef.id,
@@ -106,10 +149,10 @@ const DataStore = {
         }
     },
 
-    // Clear all expenses
-    async clearAllExpenses() {
+    // Clear all expenses for a trip
+    async clearAllExpenses(tripId) {
         try {
-            const snapshot = await this.expensesRef.get();
+            const snapshot = await this.expensesRef.where('tripId', '==', tripId).get();
             const batch = db.batch();
             snapshot.docs.forEach(doc => {
                 batch.delete(doc.ref);
@@ -181,45 +224,175 @@ const CategoryUtils = {
 const UI = {
     // DOM Elements
     elements: {
-        tripName: document.getElementById('tripName'),
-        startDate: document.getElementById('startDate'),
-        endDate: document.getElementById('endDate'),
-        tripCurrency: document.getElementById('tripCurrency'),
-        saveTrip: document.getElementById('saveTrip'),
+        // Trip selector
+        newTripBtn: document.getElementById('newTripBtn'),
+        tripList: document.getElementById('tripList'),
+
+        // Trip details section
+        tripDetailsSection: document.getElementById('tripDetailsSection'),
+        selectedTripTitle: document.getElementById('selectedTripTitle'),
+        editTripBtn: document.getElementById('editTripBtn'),
+        deleteTripBtn: document.getElementById('deleteTripBtn'),
+        tripDetailsContent: document.getElementById('tripDetailsContent'),
+
+        // Modal
+        tripModal: document.getElementById('tripModal'),
+        modalTitle: document.getElementById('modalTitle'),
+        closeModal: document.getElementById('closeModal'),
+        tripForm: document.getElementById('tripForm'),
+        modalTripName: document.getElementById('modalTripName'),
+        modalStartDate: document.getElementById('modalStartDate'),
+        modalEndDate: document.getElementById('modalEndDate'),
+        modalCurrency: document.getElementById('modalCurrency'),
+        cancelModal: document.getElementById('cancelModal'),
+
+        // Expense form
+        addExpenseSection: document.getElementById('addExpenseSection'),
         expenseForm: document.getElementById('expenseForm'),
         expenseDescription: document.getElementById('expenseDescription'),
         expenseAmount: document.getElementById('expenseAmount'),
         expenseCategory: document.getElementById('expenseCategory'),
         expenseDate: document.getElementById('expenseDate'),
+
+        // Expenses list
+        expensesSection: document.getElementById('expensesSection'),
         expensesList: document.getElementById('expensesList'),
         filterCategory: document.getElementById('filterCategory'),
+
+        // Summary
+        summarySection: document.getElementById('summarySection'),
         totalExpenses: document.getElementById('totalExpenses'),
         expenseCount: document.getElementById('expenseCount'),
         avgExpense: document.getElementById('avgExpense'),
         categoryBreakdown: document.getElementById('categoryBreakdown'),
+
+        // Actions
+        actionsSection: document.getElementById('actionsSection'),
         exportCSV: document.getElementById('exportCSV'),
         clearAll: document.getElementById('clearAll')
     },
 
-    // Current trip data
+    // Current state
     currentTrip: null,
+    allTrips: [],
+    editingTripId: null,
 
     // Initialize UI
     async init() {
         DataStore.init();
-        await this.loadTripDetails();
-        await this.loadExpenses();
+        await this.loadTrips();
         this.setDefaultDate();
         this.bindEvents();
     },
 
-    // Load trip details from Firestore
-    async loadTripDetails() {
-        this.currentTrip = await DataStore.getTrip();
-        this.elements.tripName.value = this.currentTrip.name;
-        this.elements.startDate.value = this.currentTrip.startDate;
-        this.elements.endDate.value = this.currentTrip.endDate;
-        this.elements.tripCurrency.value = this.currentTrip.currency;
+    // Load all trips
+    async loadTrips() {
+        this.allTrips = await DataStore.getAllTrips();
+        this.renderTripList();
+    },
+
+    // Render trip list
+    renderTripList() {
+        if (this.allTrips.length === 0) {
+            this.elements.tripList.innerHTML = '<p class="no-trips">No trips yet. Create your first trip!</p>';
+            this.hideSections();
+            return;
+        }
+
+        const html = this.allTrips.map(trip => {
+            const isSelected = this.currentTrip && this.currentTrip.id === trip.id;
+            const formattedStartDate = trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+            }) : 'Not set';
+            const formattedEndDate = trip.endDate ? new Date(trip.endDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            }) : 'Not set';
+
+            return `
+                <div class="trip-item ${isSelected ? 'selected' : ''}" data-id="${trip.id}" onclick="UI.selectTrip('${trip.id}')">
+                    <div class="trip-item-info">
+                        <div class="trip-item-name">${this.escapeHtml(trip.name)}</div>
+                        <div class="trip-item-dates">${formattedStartDate} - ${formattedEndDate}</div>
+                    </div>
+                    <div class="trip-item-currency">${trip.currency}</div>
+                </div>
+            `;
+        }).join('');
+
+        this.elements.tripList.innerHTML = html;
+    },
+
+    // Select a trip
+    async selectTrip(tripId) {
+        this.currentTrip = await DataStore.getTrip(tripId);
+        if (this.currentTrip) {
+            this.renderTripList();
+            this.showSections();
+            await this.loadExpenses();
+        }
+    },
+
+    // Show all sections when a trip is selected
+    showSections() {
+        this.elements.tripDetailsSection.style.display = 'block';
+        this.elements.addExpenseSection.style.display = 'block';
+        this.elements.expensesSection.style.display = 'block';
+        this.elements.summarySection.style.display = 'block';
+        this.elements.actionsSection.style.display = 'flex';
+        this.renderTripDetails();
+    },
+
+    // Hide sections when no trip is selected
+    hideSections() {
+        this.elements.tripDetailsSection.style.display = 'none';
+        this.elements.addExpenseSection.style.display = 'none';
+        this.elements.expensesSection.style.display = 'none';
+        this.elements.summarySection.style.display = 'none';
+        this.elements.actionsSection.style.display = 'none';
+        this.currentTrip = null;
+    },
+
+    // Render trip details
+    renderTripDetails() {
+        if (!this.currentTrip) return;
+
+        const trip = this.currentTrip;
+        const formattedStartDate = trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        }) : 'Not set';
+        const formattedEndDate = trip.endDate ? new Date(trip.endDate).toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        }) : 'Not set';
+
+        this.elements.selectedTripTitle.textContent = trip.name;
+
+        this.elements.tripDetailsContent.innerHTML = `
+            <div class="trip-detail-item">
+                <span class="trip-detail-label">Name</span>
+                <span class="trip-detail-value">${this.escapeHtml(trip.name)}</span>
+            </div>
+            <div class="trip-detail-item">
+                <span class="trip-detail-label">Start Date</span>
+                <span class="trip-detail-value">${formattedStartDate}</span>
+            </div>
+            <div class="trip-detail-item">
+                <span class="trip-detail-label">End Date</span>
+                <span class="trip-detail-value">${formattedEndDate}</span>
+            </div>
+            <div class="trip-detail-item">
+                <span class="trip-detail-label">Currency</span>
+                <span class="trip-detail-value">${trip.currency}</span>
+            </div>
+        `;
     },
 
     // Set default date for new expenses
@@ -230,8 +403,21 @@ const UI = {
 
     // Bind event listeners
     bindEvents() {
-        // Trip details save button
-        this.elements.saveTrip.addEventListener('click', () => this.saveTripDetails());
+        // New trip button
+        this.elements.newTripBtn.addEventListener('click', () => this.openCreateTripModal());
+
+        // Edit trip button
+        this.elements.editTripBtn.addEventListener('click', () => this.openEditTripModal());
+
+        // Delete trip button
+        this.elements.deleteTripBtn.addEventListener('click', () => this.deleteTrip());
+
+        // Modal close buttons
+        this.elements.closeModal.addEventListener('click', () => this.closeModal());
+        this.elements.cancelModal.addEventListener('click', () => this.closeModal());
+
+        // Trip form submission
+        this.elements.tripForm.addEventListener('submit', (e) => this.handleTripSubmit(e));
 
         // Expense form submission
         this.elements.expenseForm.addEventListener('submit', (e) => this.handleAddExpense(e));
@@ -242,23 +428,97 @@ const UI = {
         // Action buttons
         this.elements.exportCSV.addEventListener('click', () => this.exportToCSV());
         this.elements.clearAll.addEventListener('click', () => this.clearAllExpenses());
+
+        // Close modal on outside click
+        this.elements.tripModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.tripModal) {
+                this.closeModal();
+            }
+        });
     },
 
-    // Save trip details to Firestore
-    async saveTripDetails() {
-        const trip = {
-            name: this.elements.tripName.value,
-            startDate: this.elements.startDate.value,
-            endDate: this.elements.endDate.value,
-            currency: this.elements.tripCurrency.value
+    // Open modal for creating a new trip
+    openCreateTripModal() {
+        this.editingTripId = null;
+        this.elements.modalTitle.textContent = 'Create New Trip';
+        this.elements.tripForm.reset();
+        this.elements.modalCurrency.value = 'USD';
+        this.elements.tripModal.style.display = 'flex';
+    },
+
+    // Open modal for editing a trip
+    openEditTripModal() {
+        if (!this.currentTrip) return;
+
+        this.editingTripId = this.currentTrip.id;
+        this.elements.modalTitle.textContent = 'Edit Trip';
+        this.elements.modalTripName.value = this.currentTrip.name;
+        this.elements.modalStartDate.value = this.currentTrip.startDate;
+        this.elements.modalEndDate.value = this.currentTrip.endDate;
+        this.elements.modalCurrency.value = this.currentTrip.currency;
+        this.elements.tripModal.style.display = 'flex';
+    },
+
+    // Close modal
+    closeModal() {
+        this.elements.tripModal.style.display = 'none';
+        this.editingTripId = null;
+    },
+
+    // Handle trip form submission
+    async handleTripSubmit(e) {
+        e.preventDefault();
+
+        const tripData = {
+            name: this.elements.modalTripName.value.trim(),
+            startDate: this.elements.modalStartDate.value,
+            endDate: this.elements.modalEndDate.value,
+            currency: this.elements.modalCurrency.value
         };
 
-        const success = await DataStore.saveTrip(trip);
-        if (success) {
-            this.currentTrip = trip;
-            this.showNotification('Trip details saved!', 'success');
+        let result;
+
+        if (this.editingTripId) {
+            // Update existing trip
+            result = await DataStore.updateTrip(this.editingTripId, tripData);
+            if (result) {
+                this.currentTrip = {
+                    id: this.editingTripId,
+                    ...tripData
+                };
+                this.showNotification('Trip updated successfully!', 'success');
+            }
         } else {
-            this.showNotification('Error saving trip details', 'error');
+            // Create new trip
+            result = await DataStore.createTrip(tripData);
+            if (result) {
+                this.currentTrip = result;
+                this.showNotification('Trip created successfully!', 'success');
+            }
+        }
+
+        if (result) {
+            this.closeModal();
+            await this.loadTrips();
+            this.showSections();
+        } else {
+            this.showNotification('Error saving trip', 'error');
+        }
+    },
+
+    // Delete current trip
+    async deleteTrip() {
+        if (!this.currentTrip) return;
+
+        if (confirm(`Are you sure you want to delete "${this.currentTrip.name}" and all its expenses? This action cannot be undone.`)) {
+            const success = await DataStore.deleteTrip(this.currentTrip.id);
+            if (success) {
+                this.hideSections();
+                await this.loadTrips();
+                this.showNotification('Trip deleted', 'info');
+            } else {
+                this.showNotification('Error deleting trip', 'error');
+            }
         }
     },
 
@@ -266,7 +526,13 @@ const UI = {
     async handleAddExpense(e) {
         e.preventDefault();
 
+        if (!this.currentTrip) {
+            this.showNotification('Please select a trip first', 'error');
+            return;
+        }
+
         const expense = {
+            tripId: this.currentTrip.id,
             description: this.elements.expenseDescription.value.trim(),
             amount: parseFloat(this.elements.expenseAmount.value),
             category: this.elements.expenseCategory.value,
@@ -291,9 +557,11 @@ const UI = {
         }
     },
 
-    // Load and display expenses
+    // Load and display expenses for current trip
     async loadExpenses() {
-        let expenses = await DataStore.getExpenses();
+        if (!this.currentTrip) return;
+
+        let expenses = await DataStore.getExpensesByTrip(this.currentTrip.id);
 
         // Apply category filter
         const categoryFilter = this.elements.filterCategory.value;
@@ -309,7 +577,7 @@ const UI = {
         this.renderExpenses(expenses);
 
         // Update summary with all expenses (not filtered)
-        const allExpenses = await DataStore.getExpenses();
+        const allExpenses = await DataStore.getExpensesByTrip(this.currentTrip.id);
         this.updateSummary(allExpenses);
     },
 
@@ -424,7 +692,9 @@ const UI = {
 
     // Export to CSV
     async exportToCSV() {
-        const expenses = await DataStore.getExpenses();
+        if (!this.currentTrip) return;
+
+        const expenses = await DataStore.getExpensesByTrip(this.currentTrip.id);
 
         if (expenses.length === 0) {
             this.showNotification('No expenses to export', 'info');
@@ -457,7 +727,7 @@ const UI = {
         const url = URL.createObjectURL(blob);
 
         link.setAttribute('href', url);
-        link.setAttribute('download', `trip_balance_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `${this.currentTrip.name.replace(/[^a-z0-9]/gi, '_')}_expenses_${new Date().toISOString().split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
 
         document.body.appendChild(link);
@@ -467,10 +737,12 @@ const UI = {
         this.showNotification('Expenses exported to CSV', 'success');
     },
 
-    // Clear all expenses
+    // Clear all expenses for current trip
     async clearAllExpenses() {
-        if (confirm('Are you sure you want to delete ALL expenses? This action cannot be undone.')) {
-            const success = await DataStore.clearAllExpenses();
+        if (!this.currentTrip) return;
+
+        if (confirm(`Are you sure you want to delete ALL expenses for "${this.currentTrip.name}"? This action cannot be undone.`)) {
+            const success = await DataStore.clearAllExpenses(this.currentTrip.id);
             if (success) {
                 await this.loadExpenses();
                 this.showNotification('All expenses cleared', 'info');

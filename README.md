@@ -4,6 +4,7 @@ A modern, responsive web application for tracking travel expenses. Keep all your
 
 ## Features
 
+- **Multi-Trip Support**: Create, edit, delete, and switch between multiple trips
 - **Trip Management**: Set trip name, start date, end date, and trip currency
 - **Expense Tracking**: Add expenses with description, amount, category, and date (currency uses trip currency)
 - **Multi-Currency Support**: Choose from multiple currencies (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY, INR, MYR)
@@ -31,7 +32,8 @@ TripBalance/
 ### index.html
 The main HTML file containing:
 - Semantic HTML5 structure
-- Trip details form (name, start date, end date, currency) with save button
+- Trip selector section with list of all trips
+- Trip details modal for creating/editing trips
 - Expense entry form (description, amount, category, date)
 - Expenses list with category filtering
 - Summary cards showing totals and statistics
@@ -74,13 +76,15 @@ Firebase configuration file containing:
 3. Start adding your trip expenses!
 
 ### Usage
-1. **Set Trip Details**: Enter your trip name, dates, and select the trip currency, then click "Save Trip Details"
-2. **Add Expenses**: Fill in the expense form with description, amount, category, and date (currency is automatically set to trip currency)
-3. **View Expenses**: See all your expenses in the list below
-4. **Filter**: Use the category dropdown to filter expenses
-5. **Track Summary**: Monitor your total spending and category breakdown (all amounts shown in trip currency)
-6. **Export**: Download your expenses as a CSV file for spreadsheets
-7. **Clear**: Remove all expenses if needed (use with caution)
+1. **Create a Trip**: Click "+ New Trip" to create your first trip
+2. **Select a Trip**: Click on any trip in the list to view its details and expenses
+3. **Edit Trip**: Click "Edit" button on a selected trip to modify its details
+4. **Add Expenses**: Fill in the expense form with description, amount, category, and date (currency is automatically set to trip currency)
+5. **View Expenses**: See all your expenses in the list below
+6. **Filter**: Use the category dropdown to filter expenses
+7. **Track Summary**: Monitor your total spending and category breakdown (all amounts shown in trip currency)
+8. **Export**: Download your expenses as a CSV file for spreadsheets
+9. **Delete Trip**: Click "Delete" to remove a trip and all its expenses (use with caution)
 
 ## Data Storage
 

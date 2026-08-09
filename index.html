@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trip Balance - Travel Expense Tracker</title>
-    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
     <div class="container">
@@ -14,45 +14,33 @@
         </header>
 
         <main>
-            <!-- Trip Info Section -->
-            <section class="trip-info">
-                <h2>Trip Details</h2>
-                <div class="trip-form">
-                    <div class="form-group">
-                        <label for="tripName">Trip Name</label>
-                        <input type="text" id="tripName" placeholder="e.g., European Adventure 2024">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="startDate">Start Date</label>
-                            <input type="date" id="startDate">
-                        </div>
-                        <div class="form-group">
-                            <label for="endDate">End Date</label>
-                            <input type="date" id="endDate">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="tripCurrency">Trip Currency</label>
-                        <select id="tripCurrency">
-                            <option value="USD">USD - US Dollar</option>
-                            <option value="EUR">EUR - Euro</option>
-                            <option value="GBP">GBP - British Pound</option>
-                            <option value="JPY">JPY - Japanese Yen</option>
-                            <option value="CAD">CAD - Canadian Dollar</option>
-                            <option value="AUD">AUD - Australian Dollar</option>
-                            <option value="CHF">CHF - Swiss Franc</option>
-                            <option value="CNY">CNY - Chinese Yuan</option>
-                            <option value="INR">INR - Indian Rupee</option>
-                            <option value="MYR">MYR - Malaysian Ringgit</option>
-                        </select>
-                    </div>
-                    <button type="button" id="saveTrip" class="btn-primary">Save Trip Details</button>
+            <!-- Trip Selector Section -->
+            <section class="trip-selector">
+                <div class="trip-selector-header">
+                    <h2>Your Trips</h2>
+                    <button type="button" id="newTripBtn" class="btn-primary btn-small">+ New Trip</button>
+                </div>
+                <div id="tripList" class="trip-list">
+                    <p class="no-trips">No trips yet. Create your first trip!</p>
                 </div>
             </section>
 
-            <!-- Add Expense Section -->
-            <section class="add-expense">
+            <!-- Trip Details Section (shown when a trip is selected) -->
+            <section class="trip-info" id="tripDetailsSection" style="display: none;">
+                <div class="trip-details-header">
+                    <h2 id="selectedTripTitle">Trip Details</h2>
+                    <div class="trip-actions">
+                        <button type="button" id="editTripBtn" class="btn-secondary btn-small">Edit</button>
+                        <button type="button" id="deleteTripBtn" class="btn-danger btn-small">Delete</button>
+                    </div>
+                </div>
+                <div id="tripDetailsContent" class="trip-details-content">
+                    <!-- Trip details will be populated here -->
+                </div>
+            </section>
+
+            <!-- Add Expense Section (shown when a trip is selected) -->
+            <section class="add-expense" id="addExpenseSection" style="display: none;">
                 <h2>Add Expense</h2>
                 <form id="expenseForm">
                     <div class="form-row">
@@ -87,8 +75,8 @@
                 </form>
             </section>
 
-            <!-- Expenses List Section -->
-            <section class="expenses-section">
+            <!-- Expenses List Section (shown when a trip is selected) -->
+            <section class="expenses-section" id="expensesSection" style="display: none;">
                 <div class="expenses-header">
                     <h2>Expenses</h2>
                     <div class="filter-group">
@@ -108,8 +96,8 @@
                 </div>
             </section>
 
-            <!-- Summary Section -->
-            <section class="summary-section">
+            <!-- Summary Section (shown when a trip is selected) -->
+            <section class="summary-section" id="summarySection" style="display: none;">
                 <h2>Summary</h2>
                 <div class="summary-cards">
                     <div class="summary-card">
@@ -134,8 +122,8 @@
                 </div>
             </section>
 
-            <!-- Actions Section -->
-            <section class="actions-section">
+            <!-- Actions Section (shown when a trip is selected) -->
+            <section class="actions-section" id="actionsSection" style="display: none;">
                 <button id="exportCSV" class="btn-secondary">Export to CSV</button>
                 <button id="clearAll" class="btn-danger">Clear All Expenses</button>
             </section>
@@ -146,9 +134,54 @@
         </footer>
     </div>
 
+    <!-- Trip Modal -->
+    <div id="tripModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Create New Trip</h3>
+                <button type="button" id="closeModal" class="modal-close">&times;</button>
+            </div>
+            <form id="tripForm">
+                <div class="form-group">
+                    <label for="modalTripName">Trip Name</label>
+                    <input type="text" id="modalTripName" placeholder="e.g., European Adventure 2024" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="modalStartDate">Start Date</label>
+                        <input type="date" id="modalStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalEndDate">End Date</label>
+                        <input type="date" id="modalEndDate" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="modalCurrency">Trip Currency</label>
+                    <select id="modalCurrency" required>
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="JPY">JPY - Japanese Yen</option>
+                        <option value="CAD">CAD - Canadian Dollar</option>
+                        <option value="AUD">AUD - Australian Dollar</option>
+                        <option value="CHF">CHF - Swiss Franc</option>
+                        <option value="CNY">CNY - Chinese Yuan</option>
+                        <option value="INR">INR - Indian Rupee</option>
+                        <option value="MYR">MYR - Malaysian Ringgit</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancelModal" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Trip</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js?v=1"></script>
-    <script src="app.js?v=3"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>
