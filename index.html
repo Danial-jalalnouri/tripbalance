@@ -32,6 +32,22 @@
                             <input type="date" id="endDate">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label for="tripCurrency">Trip Currency</label>
+                        <select id="tripCurrency">
+                            <option value="USD">USD - US Dollar</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - British Pound</option>
+                            <option value="JPY">JPY - Japanese Yen</option>
+                            <option value="CAD">CAD - Canadian Dollar</option>
+                            <option value="AUD">AUD - Australian Dollar</option>
+                            <option value="CHF">CHF - Swiss Franc</option>
+                            <option value="CNY">CNY - Chinese Yuan</option>
+                            <option value="INR">INR - Indian Rupee</option>
+                            <option value="MYR">MYR - Malaysian Ringgit</option>
+                        </select>
+                    </div>
+                    <button type="button" id="saveTrip" class="btn-primary">Save Trip Details</button>
                 </div>
             </section>
 
@@ -67,21 +83,6 @@
                             <input type="date" id="expenseDate" required>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="expenseCurrency">Currency</label>
-                        <select id="expenseCurrency" required>
-                            <option value="USD">USD - US Dollar</option>
-                            <option value="EUR">EUR - Euro</option>
-                            <option value="GBP">GBP - British Pound</option>
-                            <option value="JPY">JPY - Japanese Yen</option>
-                            <option value="CAD">CAD - Canadian Dollar</option>
-                            <option value="AUD">AUD - Australian Dollar</option>
-                            <option value="CHF">CHF - Swiss Franc</option>
-                            <option value="CNY">CNY - Chinese Yuan</option>
-                            <option value="INR">INR - Indian Rupee</option>
-                            <option value="MYR">MYR - Malaysian Ringgit</option>
-                        </select>
-                    </div>
                     <button type="submit" class="btn-primary">Add Expense</button>
                 </form>
             </section>
@@ -99,19 +100,6 @@
                             <option value="activities">Activities</option>
                             <option value="shopping">Shopping</option>
                             <option value="other">Other</option>
-                        </select>
-                        <select id="filterCurrency">
-                            <option value="all">All Currencies</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                            <option value="GBP">GBP</option>
-                            <option value="JPY">JPY</option>
-                            <option value="CAD">CAD</option>
-                            <option value="AUD">AUD</option>
-                            <option value="CHF">CHF</option>
-                            <option value="CNY">CNY</option>
-                            <option value="INR">INR</option>
-                            <option value="MYR">MYR</option>
                         </select>
                     </div>
                 </div>

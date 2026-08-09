@@ -16,7 +16,8 @@ const DataStore = {
         return data ? JSON.parse(data) : {
             name: '',
             startDate: '',
-            endDate: ''
+            endDate: '',
+            currency: 'USD'
         };
     },
 
@@ -133,15 +134,15 @@ const UI = {
         tripName: document.getElementById('tripName'),
         startDate: document.getElementById('startDate'),
         endDate: document.getElementById('endDate'),
+        tripCurrency: document.getElementById('tripCurrency'),
+        saveTrip: document.getElementById('saveTrip'),
         expenseForm: document.getElementById('expenseForm'),
         expenseDescription: document.getElementById('expenseDescription'),
         expenseAmount: document.getElementById('expenseAmount'),
         expenseCategory: document.getElementById('expenseCategory'),
         expenseDate: document.getElementById('expenseDate'),
-        expenseCurrency: document.getElementById('expenseCurrency'),
         expensesList: document.getElementById('expensesList'),
         filterCategory: document.getElementById('filterCategory'),
-        filterCurrency: document.getElementById('filterCurrency'),
         totalExpenses: document.getElementById('totalExpenses'),
         expenseCount: document.getElementById('expenseCount'),
         avgExpense: document.getElementById('avgExpense'),
@@ -164,6 +165,7 @@ const UI = {
         this.elements.tripName.value = trip.name;
         this.elements.startDate.value = trip.startDate;
         this.elements.endDate.value = trip.endDate;
+        this.elements.tripCurrency.value = trip.currency;
     },
 
     // Set default date for new expenses
@@ -174,17 +176,14 @@ const UI = {
 
     // Bind event listeners
     bindEvents() {
-        // Trip details change
-        this.elements.tripName.addEventListener('change', () => this.saveTripDetails());
-        this.elements.startDate.addEventListener('change', () => this.saveTripDetails());
-        this.elements.endDate.addEventListener('change', () => this.saveTripDetails());
+        // Trip details save button
+        this.elements.saveTrip.addEventListener('click', () => this.saveTripDetails());
 
         // Expense form submission
         this.elements.expenseForm.addEventListener('submit', (e) => this.handleAddExpense(e));
 
         // Filter changes
         this.elements.filterCategory.addEventListener('change', () => this.loadExpenses());
-        this.elements.filterCurrency.addEventListener('change', () => this.loadExpenses());
 
         // Action buttons
         this.elements.exportCSV.addEventListener('click', () => this.exportToCSV());
@@ -196,21 +195,24 @@ const UI = {
         const trip = {
             name: this.elements.tripName.value,
             startDate: this.elements.startDate.value,
-            endDate: this.elements.endDate.value
+            endDate: this.elements.endDate.value,
+            currency: this.elements.tripCurrency.value
         };
         DataStore.saveTrip(trip);
+        this.showNotification('Trip details saved!', 'success');
     },
 
     // Handle adding new expense
     handleAddExpense(e) {
         e.preventDefault();
 
+        const trip = DataStore.getTrip();
         const expense = {
             description: this.elements.expenseDescription.value.trim(),
             amount: parseFloat(this.elements.expenseAmount.value),
             category: this.elements.expenseCategory.value,
             date: this.elements.expenseDate.value,
-            currency: this.elements.expenseCurrency.value
+            currency: trip.currency
         };
 
         DataStore.addExpense(expense);
@@ -230,16 +232,11 @@ const UI = {
     loadExpenses() {
         let expenses = DataStore.getExpenses();
 
-        // Apply filters
+        // Apply category filter
         const categoryFilter = this.elements.filterCategory.value;
-        const currencyFilter = this.elements.filterCurrency.value;
 
         if (categoryFilter !== 'all') {
             expenses = expenses.filter(e => e.category === categoryFilter);
-        }
-
-        if (currencyFilter !== 'all') {
-            expenses = expenses.filter(e => e.currency === currencyFilter);
         }
 
         // Sort by date (newest first)
@@ -303,6 +300,7 @@ const UI = {
 
     // Update summary statistics
     updateSummary(expenses) {
+        const trip = DataStore.getTrip();
         const total = expenses.reduce((sum, e) => sum + e.amount, 0);
         const count = expenses.length;
         const avg = count > 0 ? total / count : 0;
@@ -317,9 +315,9 @@ const UI = {
         });
 
         // Update DOM
-        this.elements.totalExpenses.textContent = CurrencyUtils.format(total, 'USD');
+        this.elements.totalExpenses.textContent = CurrencyUtils.format(total, trip.currency);
         this.elements.expenseCount.textContent = count;
-        this.elements.avgExpense.textContent = CurrencyUtils.format(avg, 'USD');
+        this.elements.avgExpense.textContent = CurrencyUtils.format(avg, trip.currency);
 
         // Render category breakdown
         this.renderCategoryBreakdown(byCategory);
@@ -328,6 +326,7 @@ const UI = {
     // Render category breakdown
     renderCategoryBreakdown(byCategory) {
         const categories = Object.keys(byCategory);
+        const trip = DataStore.getTrip();
 
         if (categories.length === 0) {
             this.elements.categoryBreakdown.innerHTML = '<p class="no-expenses">No expenses yet</p>';
@@ -347,7 +346,7 @@ const UI = {
                         <span class="category-icon category-${category}"></span>
                         ${info.icon} ${info.name}
                     </span>
-                    <span class="category-amount">${CurrencyUtils.format(amount, 'USD')}</span>
+                    <span class="category-amount">${CurrencyUtils.format(amount, trip.currency)}</span>
                 </div>
             `;
         }).join('');
