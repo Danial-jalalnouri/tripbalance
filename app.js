@@ -2,6 +2,88 @@
 // Main Application JavaScript
 
 // ============================================================
+// Authentication Module
+// ============================================================
+
+const Auth = {
+    currentUser: null,
+
+    // Initialize auth state listener
+    init() {
+        // Bind auth buttons immediately (before any sign-in state)
+        document.getElementById('googleSignIn').addEventListener('click', () => this.signInWithGoogle());
+        document.getElementById('signOut').addEventListener('click', () => this.signOut());
+
+        auth.onAuthStateChanged((user) => {
+            this.currentUser = user;
+            this.handleAuthStateChange(user);
+        });
+    },
+
+    // Handle auth state change
+    handleAuthStateChange(user) {
+        const authSignedOut = document.getElementById('authSignedOut');
+        const authSignedIn = document.getElementById('authSignedIn');
+        const mainApp = document.getElementById('mainApp');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+
+        if (user) {
+            // User is signed in
+            authSignedOut.style.display = 'none';
+            authSignedIn.style.display = 'block';
+            loadingSpinner.style.display = 'none';
+            mainApp.style.display = 'block';
+
+            // Update user info
+            document.getElementById('userAvatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'User') + '&background=6366f1&color=fff';
+
+            // Initialize app with user ID
+            DataStore.init(user.uid);
+            if (!UI.initialized) {
+                UI.init();
+            } else {
+                UI.loadTrips();
+            }
+        } else {
+            // User is signed out
+            authSignedOut.style.display = 'block';
+            authSignedIn.style.display = 'none';
+            loadingSpinner.style.display = 'none';
+            mainApp.style.display = 'none';
+        }
+    },
+
+    // Sign in with Google
+    async signInWithGoogle() {
+        try {
+            const result = await auth.signInWithPopup(googleProvider);
+            console.log('User signed in:', result.user);
+            return result.user;
+        } catch (error) {
+            console.error('Error signing in:', error);
+            UI.showNotification('Error signing in: ' + error.message, 'error');
+            return null;
+        }
+    },
+
+    // Sign out
+    async signOut() {
+        try {
+            await auth.signOut();
+            console.log('User signed out');
+        } catch (error) {
+            console.error('Error signing out:', error);
+            UI.showNotification('Error signing out', 'error');
+        }
+    },
+
+    // Get current user
+    getCurrentUser() {
+        return this.currentUser;
+    }
+};
+
+// ============================================================
 // Data Layer - Firestore Integration (Multiple Trips)
 // ============================================================
 
@@ -10,11 +92,13 @@ const DataStore = {
     tripsRef: null,
     expensesRef: null,
     currentTripId: null,
+    userId: null,
 
-    // Initialize Firestore references
-    init() {
-        this.tripsRef = db.collection('trips');
-        this.expensesRef = db.collection('expenses');
+    // Initialize Firestore references for current user
+    init(userId) {
+        this.userId = userId;
+        this.tripsRef = db.collection('users').doc(userId).collection('trips');
+        this.expensesRef = db.collection('users').doc(userId).collection('expenses');
     },
 
     // Get all trips
@@ -276,10 +360,11 @@ const UI = {
     currentTrip: null,
     allTrips: [],
     editingTripId: null,
+    initialized: false,
 
     // Initialize UI
     async init() {
-        DataStore.init();
+        this.initialized = true;
         await this.loadTrips();
         this.setDefaultDate();
         this.bindEvents();
@@ -439,6 +524,10 @@ const UI = {
 
     // Open modal for creating a new trip
     openCreateTripModal() {
+        if (this.allTrips.length >= 2) {
+            UI.showNotification('Free plan limit: maximum 2 trips allowed', 'error');
+            return;
+        }
         this.editingTripId = null;
         this.elements.modalTitle.textContent = 'Create New Trip';
         this.elements.tripForm.reset();
@@ -797,5 +886,5 @@ const UI = {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    UI.init();
+    Auth.init();
 });

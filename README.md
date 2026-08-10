@@ -4,6 +4,7 @@ A modern, responsive web application for tracking travel expenses. Keep all your
 
 ## Features
 
+- **Google Authentication**: Sign in with your Google account for secure access
 - **Multi-Trip Support**: Create, edit, delete, and switch between multiple trips
 - **Trip Management**: Set trip name, start date, end date, and trip currency
 - **Expense Tracking**: Add expenses with description, amount, category, and date (currency uses trip currency)
@@ -12,7 +13,7 @@ A modern, responsive web application for tracking travel expenses. Keep all your
 - **Filtering**: Filter expenses by category
 - **Summary Statistics**: View total expenses, count, average per expense, and category breakdown (all in trip currency)
 - **Data Export**: Export expenses to CSV format
-- **Persistent Storage**: All data saved in Firebase Firestore (cloud-based, real-time sync)
+- **Persistent Storage**: All data saved in Firebase Firestore (cloud-based, real-time sync, user-specific)
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 
 ## Project Structure
@@ -76,31 +77,37 @@ Firebase configuration file containing:
 3. Start adding your trip expenses!
 
 ### Usage
-1. **Create a Trip**: Click "+ New Trip" to create your first trip
-2. **Select a Trip**: Click on any trip in the list to view its details and expenses
-3. **Edit Trip**: Click "Edit" button on a selected trip to modify its details
-4. **Add Expenses**: Fill in the expense form with description, amount, category, and date (currency is automatically set to trip currency)
-5. **View Expenses**: See all your expenses in the list below
-6. **Filter**: Use the category dropdown to filter expenses
-7. **Track Summary**: Monitor your total spending and category breakdown (all amounts shown in trip currency)
-8. **Export**: Download your expenses as a CSV file for spreadsheets
-9. **Delete Trip**: Click "Delete" to remove a trip and all its expenses (use with caution)
+1. **Sign In**: Click "Sign in with Google" and authenticate with your Google account
+2. **Create a Trip**: Click "+ New Trip" to create your first trip
+3. **Select a Trip**: Click on any trip in the list to view its details and expenses
+4. **Edit Trip**: Click "Edit" button on a selected trip to modify its details
+5. **Add Expenses**: Fill in the expense form with description, amount, category, and date (currency is automatically set to trip currency)
+6. **View Expenses**: See all your expenses in the list below
+7. **Filter**: Use the category dropdown to filter expenses
+8. **Track Summary**: Monitor your total spending and category breakdown (all amounts shown in trip currency)
+9. **Export**: Download your expenses as a CSV file for spreadsheets
+10. **Delete Trip**: Click "Delete" to remove a trip and all its expenses (use with caution)
+11. **Sign Out**: Click "Sign Out" when you're done
 
 ## Data Storage
 
-This project uses Firebase Firestore for cloud-based data persistence:
-- **trips** collection: Stores trip details (name, dates, currency)
-- **expenses** collection: Stores all expense records
+This project uses Firebase Firestore for cloud-based data persistence. Data is stored per-user:
+- **users/{userId}/trips**: Stores trip details (name, dates, currency)
+- **users/{userId}/expenses**: Stores all expense records
 
 ### Firestore Setup
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project
-3. Go to **Firestore Database** in the left sidebar
-4. Click **Create Database**
-5. Choose a location for your database
-6. Select **Start in test mode** (for development)
-7. Click **Enable**
+3. Go to **Authentication** in the left sidebar
+4. Click **Get started**
+5. Click on **Google** provider and enable it
+6. Add your domain to **Authorized domains**
+7. Go to **Firestore Database** in the left sidebar
+8. Click **Create Database**
+9. Choose a location for your database
+10. Select **Start in test mode** (for development)
+11. Click **Enable**
 
 ### Firestore Security Rules (Development)
 
