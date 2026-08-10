@@ -1118,24 +1118,26 @@ const UI = {
             position: fixed;
             bottom: 2rem;
             right: 2rem;
-            padding: 1rem 2rem;
+            padding: 1.25rem 2rem;
             border-radius: 12px;
             color: white;
             font-weight: 600;
-            font-size: 0.95rem;
-            z-index: 1000;
+            font-size: 1rem;
+            z-index: 9999;
             animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             background-color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+            max-width: 400px;
+            line-height: 1.4;
         `;
 
         document.body.appendChild(notification);
 
-        // Remove after 3 seconds
+        // Remove after 4 seconds
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
             setTimeout(() => notification.remove(), 400);
-        }, 3000);
+        }, 4000);
     },
 
     // Escape HTML to prevent XSS
