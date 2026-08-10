@@ -576,6 +576,84 @@ input::placeholder {
     padding: 1rem;
 }
 
+/* Admin Panel */
+.admin-panel {
+    border: 2px solid var(--warning);
+}
+
+.admin-panel h2 {
+    color: var(--warning);
+}
+
+.admin-users {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.admin-user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: var(--radius-md);
+    transition: all 0.3s ease;
+}
+
+.admin-user-item:hover {
+    transform: translateX(5px);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.admin-user-info {
+    flex: 1;
+}
+
+.admin-user-email {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.admin-user-id {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.admin-user-limit {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-user-limit label {
+    margin-bottom: 0;
+    min-width: auto;
+}
+
+.admin-user-limit select {
+    width: 80px;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.admin-user-limit button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+.admin-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: linear-gradient(135deg, var(--warning), #d97706);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* Footer */
 footer {
     text-align: center;

@@ -2,11 +2,19 @@
 // Main Application JavaScript
 
 // ============================================================
+// Constants
+// ============================================================
+
+const ADMIN_EMAIL = 'coursebagemaila@gmail.com';
+const DEFAULT_TRIP_LIMIT = 2;
+
+// ============================================================
 // Authentication Module
 // ============================================================
 
 const Auth = {
     currentUser: null,
+    isAdmin: false,
 
     // Initialize auth state listener
     init() {
@@ -16,6 +24,7 @@ const Auth = {
 
         auth.onAuthStateChanged((user) => {
             this.currentUser = user;
+            this.isAdmin = user && user.email === ADMIN_EMAIL;
             this.handleAuthStateChange(user);
         });
     },
@@ -26,6 +35,7 @@ const Auth = {
         const authSignedIn = document.getElementById('authSignedIn');
         const mainApp = document.getElementById('mainApp');
         const loadingSpinner = document.getElementById('loadingSpinner');
+        const adminPanel = document.getElementById('adminPanel');
 
         if (user) {
             // User is signed in
@@ -33,6 +43,9 @@ const Auth = {
             authSignedIn.style.display = 'block';
             loadingSpinner.style.display = 'none';
             mainApp.style.display = 'block';
+
+            // Show admin panel for admin user
+            adminPanel.style.display = this.isAdmin ? 'block' : 'none';
 
             // Update user info
             document.getElementById('userAvatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'User') + '&background=6366f1&color=fff';
@@ -43,6 +56,11 @@ const Auth = {
                 UI.init();
             } else {
                 UI.loadTrips();
+            }
+
+            // Load admin panel if admin
+            if (this.isAdmin) {
+                AdminPanel.loadUsers();
             }
         } else {
             // User is signed out
@@ -99,6 +117,62 @@ const DataStore = {
         this.userId = userId;
         this.tripsRef = db.collection('users').doc(userId).collection('trips');
         this.expensesRef = db.collection('users').doc(userId).collection('expenses');
+    },
+
+    // Get user limits (admin only)
+    async getUserLimits() {
+        try {
+            const snapshot = await db.collection('userLimits').get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error getting user limits:', error);
+            return [];
+        }
+    },
+
+    // Get trip limit for a user
+    async getUserTripLimit(userId) {
+        try {
+            const doc = await db.collection('userLimits').doc(userId).get();
+            if (doc.exists) {
+                return doc.data().tripLimit;
+            }
+            return DEFAULT_TRIP_LIMIT;
+        } catch (error) {
+            console.error('Error getting user trip limit:', error);
+            return DEFAULT_TRIP_LIMIT;
+        }
+    },
+
+    // Set trip limit for a user (admin only)
+    async setUserTripLimit(userId, tripLimit) {
+        try {
+            await db.collection('userLimits').doc(userId).set({
+                tripLimit: tripLimit,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            return true;
+        } catch (error) {
+            console.error('Error setting user trip limit:', error);
+            return false;
+        }
+    },
+
+    // Get all users (admin only)
+    async getAllUsers() {
+        try {
+            const snapshot = await db.collection('users').get();
+            return snapshot.docs.map(doc => ({
+                uid: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error getting all users:', error);
+            return [];
+        }
     },
 
     // Get all trips
@@ -298,6 +372,102 @@ const CategoryUtils = {
 
     getCategoryIcon(category) {
         return this.getCategoryInfo(category).icon;
+    }
+};
+
+// ============================================================
+// Admin Panel
+// ============================================================
+
+const AdminPanel = {
+    users: [],
+
+    // Load all users
+    async loadUsers() {
+        const users = await DataStore.getAllUsers();
+        const limits = await DataStore.getUserLimits();
+        const limitsMap = {};
+        limits.forEach(l => {
+            limitsMap[l.id] = l.tripLimit;
+        });
+
+        // Enrich users with trip counts and limits
+        this.users = [];
+        for (const user of users) {
+            const tripsSnapshot = await db.collection('users').doc(user.uid).collection('trips').get();
+            const tripCount = tripsSnapshot.size;
+            const tripLimit = limitsMap[user.uid] || DEFAULT_TRIP_LIMIT;
+            this.users.push({
+                uid: user.uid,
+                email: user.email || 'Unknown',
+                displayName: user.displayName || 'Unknown',
+                tripCount: tripCount,
+                tripLimit: tripLimit
+            });
+        }
+
+        this.renderUsers();
+    },
+
+    // Render users list
+    renderUsers() {
+        const container = document.getElementById('adminUsers');
+
+        if (this.users.length === 0) {
+            container.innerHTML = '<p class="no-trips">No users found</p>';
+            return;
+        }
+
+        const html = this.users.map(user => {
+            const isAdmin = user.email === ADMIN_EMAIL;
+            return `
+                <div class="admin-user-item">
+                    <div class="admin-user-info">
+                        <div class="admin-user-email">
+                            ${this.escapeHtml(user.email)}
+                            ${isAdmin ? '<span class="admin-badge">Admin</span>' : ''}
+                        </div>
+                        <div class="admin-user-id">UID: ${user.uid.substring(0, 12)}... | Trips: ${user.tripCount}</div>
+                    </div>
+                    <div class="admin-user-limit">
+                        <label>Limit:</label>
+                        <select id="limit-${user.uid}">
+                            ${[1, 2, 3, 4, 5, 10, 15, 20].map(n =>
+                                `<option value="${n}" ${user.tripLimit === n ? 'selected' : ''}>${n}</option>`
+                            ).join('')}
+                        </select>
+                        <button class="btn-primary btn-small" onclick="AdminPanel.saveLimit('${user.uid}')">Save</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = html;
+    },
+
+    // Save trip limit for a user
+    async saveLimit(userId) {
+        const select = document.getElementById(`limit-${userId}`);
+        const newLimit = parseInt(select.value);
+
+        const success = await DataStore.setUserTripLimit(userId, newLimit);
+        if (success) {
+            UI.showNotification('Trip limit updated!', 'success');
+            // Update local data
+            const user = this.users.find(u => u.uid === userId);
+            if (user) {
+                user.tripLimit = newLimit;
+            }
+        } else {
+            UI.showNotification('Error updating trip limit', 'error');
+        }
+    },
+
+    // Escape HTML to prevent XSS
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 };
 
@@ -523,9 +693,10 @@ const UI = {
     },
 
     // Open modal for creating a new trip
-    openCreateTripModal() {
-        if (this.allTrips.length >= 2) {
-            UI.showNotification('Free plan limit: maximum 2 trips allowed', 'error');
+    async openCreateTripModal() {
+        const tripLimit = await DataStore.getUserTripLimit(DataStore.userId);
+        if (this.allTrips.length >= tripLimit) {
+            UI.showNotification(`Trip limit reached: maximum ${tripLimit} trip${tripLimit !== 1 ? 's' : ''} allowed`, 'error');
             return;
         }
         this.editingTripId = null;
