@@ -147,7 +147,10 @@ const DataStore = {
         try {
             const doc = await db.collection('userLimits').doc(userId).get();
             if (doc.exists) {
-                return doc.data().tripLimit;
+                const limit = doc.data().tripLimit;
+                if (typeof limit === 'number') {
+                    return limit;
+                }
             }
             return DEFAULT_TRIP_LIMIT;
         } catch (error) {
@@ -161,7 +164,10 @@ const DataStore = {
         try {
             const doc = await db.collection('userLimits').doc(userId).get();
             if (doc.exists) {
-                return doc.data().expenseLimit;
+                const limit = doc.data().expenseLimit;
+                if (typeof limit === 'number') {
+                    return limit;
+                }
             }
             return DEFAULT_EXPENSE_LIMIT;
         } catch (error) {
