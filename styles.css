@@ -620,6 +620,13 @@ input::placeholder {
     color: var(--text-muted);
 }
 
+.admin-user-limits {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 .admin-user-limit {
     display: flex;
     align-items: center;

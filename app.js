@@ -7,6 +7,7 @@
 
 const ADMIN_EMAIL = 'coursebagemaila@gmail.com';
 const DEFAULT_TRIP_LIMIT = 2;
+const DEFAULT_EXPENSE_LIMIT = 2;
 
 // ============================================================
 // Authentication Module
@@ -155,6 +156,20 @@ const DataStore = {
         }
     },
 
+    // Get expense limit for a user
+    async getUserExpenseLimit(userId) {
+        try {
+            const doc = await db.collection('userLimits').doc(userId).get();
+            if (doc.exists) {
+                return doc.data().expenseLimit;
+            }
+            return DEFAULT_EXPENSE_LIMIT;
+        } catch (error) {
+            console.error('Error getting user expense limit:', error);
+            return DEFAULT_EXPENSE_LIMIT;
+        }
+    },
+
     // Set trip limit for a user (admin only)
     async setUserTripLimit(userId, tripLimit) {
         try {
@@ -165,6 +180,20 @@ const DataStore = {
             return true;
         } catch (error) {
             console.error('Error setting user trip limit:', error);
+            return false;
+        }
+    },
+
+    // Set expense limit for a user (admin only)
+    async setUserExpenseLimit(userId, expenseLimit) {
+        try {
+            await db.collection('userLimits').doc(userId).set({
+                expenseLimit: expenseLimit,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            return true;
+        } catch (error) {
+            console.error('Error setting user expense limit:', error);
             return false;
         }
     },
@@ -396,7 +425,10 @@ const AdminPanel = {
         const limits = await DataStore.getUserLimits();
         const limitsMap = {};
         limits.forEach(l => {
-            limitsMap[l.id] = l.tripLimit;
+            limitsMap[l.id] = {
+                tripLimit: l.tripLimit,
+                expenseLimit: l.expenseLimit
+            };
         });
 
         // Enrich users with trip counts, expense counts and limits
@@ -406,14 +438,16 @@ const AdminPanel = {
             const expensesSnapshot = await db.collection('users').doc(user.uid).collection('expenses').get();
             const tripCount = tripsSnapshot.size;
             const expenseCount = expensesSnapshot.size;
-            const tripLimit = limitsMap[user.uid] || DEFAULT_TRIP_LIMIT;
+            const tripLimit = limitsMap[user.uid]?.tripLimit || DEFAULT_TRIP_LIMIT;
+            const expenseLimit = limitsMap[user.uid]?.expenseLimit || DEFAULT_EXPENSE_LIMIT;
             this.users.push({
                 uid: user.uid,
                 email: user.email || 'Unknown',
                 displayName: user.displayName || 'Unknown',
                 tripCount: tripCount,
                 expenseCount: expenseCount,
-                tripLimit: tripLimit
+                tripLimit: tripLimit,
+                expenseLimit: expenseLimit
             });
         }
 
@@ -438,16 +472,26 @@ const AdminPanel = {
                             ${this.escapeHtml(user.email)}
                             ${isAdmin ? '<span class="admin-badge">Admin</span>' : ''}
                         </div>
-                        <div class="admin-user-id">UID: ${user.uid.substring(0, 12)}... | Trips: ${user.tripCount} | Expenses: ${user.expenseCount}</div>
+                        <div class="admin-user-id">UID: ${user.uid.substring(0, 12)}... | Trips: ${user.tripCount}/${user.tripLimit} | Expenses: ${user.expenseCount}/${user.expenseLimit}</div>
                     </div>
-                    <div class="admin-user-limit">
-                        <label>Limit:</label>
-                        <select id="limit-${user.uid}">
-                            ${[1, 2, 3, 4, 5, 10, 15, 20].map(n =>
-                                `<option value="${n}" ${user.tripLimit === n ? 'selected' : ''}>${n}</option>`
-                            ).join('')}
-                        </select>
-                        <button class="btn-primary btn-small" onclick="AdminPanel.saveLimit('${user.uid}')">Save</button>
+                    <div class="admin-user-limits">
+                        <div class="admin-user-limit">
+                            <label>Trip Limit:</label>
+                            <select id="tripLimit-${user.uid}">
+                                ${[1, 2, 3, 4, 5, 10, 15, 20].map(n =>
+                                    `<option value="${n}" ${user.tripLimit === n ? 'selected' : ''}>${n}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="admin-user-limit">
+                            <label>Expense Limit:</label>
+                            <select id="expenseLimit-${user.uid}">
+                                ${[1, 2, 3, 4, 5, 10, 15, 20, 50, 100].map(n =>
+                                    `<option value="${n}" ${user.expenseLimit === n ? 'selected' : ''}>${n}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <button class="btn-primary btn-small" onclick="AdminPanel.saveLimits('${user.uid}')">Save</button>
                     </div>
                 </div>
             `;
@@ -456,21 +500,26 @@ const AdminPanel = {
         container.innerHTML = html;
     },
 
-    // Save trip limit for a user
-    async saveLimit(userId) {
-        const select = document.getElementById(`limit-${userId}`);
-        const newLimit = parseInt(select.value);
+    // Save limits for a user
+    async saveLimits(userId) {
+        const tripSelect = document.getElementById(`tripLimit-${userId}`);
+        const expenseSelect = document.getElementById(`expenseLimit-${userId}`);
+        const newTripLimit = parseInt(tripSelect.value);
+        const newExpenseLimit = parseInt(expenseSelect.value);
 
-        const success = await DataStore.setUserTripLimit(userId, newLimit);
-        if (success) {
-            UI.showNotification('Trip limit updated!', 'success');
+        const tripSuccess = await DataStore.setUserTripLimit(userId, newTripLimit);
+        const expenseSuccess = await DataStore.setUserExpenseLimit(userId, newExpenseLimit);
+
+        if (tripSuccess && expenseSuccess) {
+            UI.showNotification('Limits updated!', 'success');
             // Update local data
             const user = this.users.find(u => u.uid === userId);
             if (user) {
-                user.tripLimit = newLimit;
+                user.tripLimit = newTripLimit;
+                user.expenseLimit = newExpenseLimit;
             }
         } else {
-            UI.showNotification('Error updating trip limit', 'error');
+            UI.showNotification('Error updating limits', 'error');
         }
     },
 
@@ -802,6 +851,16 @@ const UI = {
             return;
         }
 
+        // Check expense limit
+        const expenses = await DataStore.getExpensesByTrip(this.currentTrip.id);
+        const allExpenses = await this.getAllUserExpenses();
+        const expenseLimit = await DataStore.getUserExpenseLimit(DataStore.userId);
+
+        if (allExpenses.length >= expenseLimit) {
+            this.showNotification(`Expense limit reached: maximum ${expenseLimit} expense${expenseLimit !== 1 ? 's' : ''} allowed`, 'error');
+            return;
+        }
+
         const expense = {
             tripId: this.currentTrip.id,
             description: this.elements.expenseDescription.value.trim(),
@@ -1053,6 +1112,16 @@ const UI = {
             notification.style.animation = 'slideOut 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
             setTimeout(() => notification.remove(), 400);
         }, 3000);
+    },
+
+    // Get all expenses across all trips for current user
+    async getAllUserExpenses() {
+        let allExpenses = [];
+        for (const trip of this.allTrips) {
+            const expenses = await DataStore.getExpensesByTrip(trip.id);
+            allExpenses = allExpenses.concat(expenses);
+        }
+        return allExpenses;
     },
 
     // Escape HTML to prevent XSS
