@@ -304,6 +304,31 @@ const DataStore = {
         }
     },
 
+    // Get all expenses for the current user (across all trips)
+    async getAllUserExpenses() {
+        try {
+            const snapshot = await this.expensesRef.get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error getting all user expenses:', error);
+            return [];
+        }
+    },
+
+    // Get expense count for the current user
+    async getUserExpenseCount() {
+        try {
+            const snapshot = await this.expensesRef.get();
+            return snapshot.size;
+        } catch (error) {
+            console.error('Error getting user expense count:', error);
+            return 0;
+        }
+    },
+
     // Add a new expense
     async addExpense(expense) {
         try {
@@ -852,11 +877,10 @@ const UI = {
         }
 
         // Check expense limit
-        const expenses = await DataStore.getExpensesByTrip(this.currentTrip.id);
-        const allExpenses = await this.getAllUserExpenses();
         const expenseLimit = await DataStore.getUserExpenseLimit(DataStore.userId);
+        const expenseCount = await DataStore.getUserExpenseCount();
 
-        if (allExpenses.length >= expenseLimit) {
+        if (expenseCount >= expenseLimit) {
             this.showNotification(`Expense limit reached: maximum ${expenseLimit} expense${expenseLimit !== 1 ? 's' : ''} allowed`, 'error');
             return;
         }
@@ -1112,16 +1136,6 @@ const UI = {
             notification.style.animation = 'slideOut 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
             setTimeout(() => notification.remove(), 400);
         }, 3000);
-    },
-
-    // Get all expenses across all trips for current user
-    async getAllUserExpenses() {
-        let allExpenses = [];
-        for (const trip of this.allTrips) {
-            const expenses = await DataStore.getExpensesByTrip(trip.id);
-            allExpenses = allExpenses.concat(expenses);
-        }
-        return allExpenses;
     },
 
     // Escape HTML to prevent XSS
