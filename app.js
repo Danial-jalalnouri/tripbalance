@@ -50,6 +50,14 @@ const Auth = {
             // Update user info
             document.getElementById('userAvatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'User') + '&background=6366f1&color=fff';
 
+            // Save user info to Firestore
+            db.collection('users').doc(user.uid).set({
+                email: user.email,
+                displayName: user.displayName || '',
+                photoURL: user.photoURL || '',
+                lastLogin: new Date().toISOString()
+            }, { merge: true });
+
             // Initialize app with user ID
             DataStore.init(user.uid);
             if (!UI.initialized) {
