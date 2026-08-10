@@ -399,17 +399,20 @@ const AdminPanel = {
             limitsMap[l.id] = l.tripLimit;
         });
 
-        // Enrich users with trip counts and limits
+        // Enrich users with trip counts, expense counts and limits
         this.users = [];
         for (const user of users) {
             const tripsSnapshot = await db.collection('users').doc(user.uid).collection('trips').get();
+            const expensesSnapshot = await db.collection('users').doc(user.uid).collection('expenses').get();
             const tripCount = tripsSnapshot.size;
+            const expenseCount = expensesSnapshot.size;
             const tripLimit = limitsMap[user.uid] || DEFAULT_TRIP_LIMIT;
             this.users.push({
                 uid: user.uid,
                 email: user.email || 'Unknown',
                 displayName: user.displayName || 'Unknown',
                 tripCount: tripCount,
+                expenseCount: expenseCount,
                 tripLimit: tripLimit
             });
         }
@@ -435,7 +438,7 @@ const AdminPanel = {
                             ${this.escapeHtml(user.email)}
                             ${isAdmin ? '<span class="admin-badge">Admin</span>' : ''}
                         </div>
-                        <div class="admin-user-id">UID: ${user.uid.substring(0, 12)}... | Trips: ${user.tripCount}</div>
+                        <div class="admin-user-id">UID: ${user.uid.substring(0, 12)}... | Trips: ${user.tripCount} | Expenses: ${user.expenseCount}</div>
                     </div>
                     <div class="admin-user-limit">
                         <label>Limit:</label>
